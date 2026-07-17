@@ -23,7 +23,7 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET_NAME="piano-teacher-${ACCOUNT_ID}"
 RUNTIME="python3.12"
 HANDLER="handler.lambda_handler"
-TIMEOUT=900
+TIMEOUT=120
 MEMORY=512
 MODEL_ID="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -89,8 +89,8 @@ INLINE_POLICY=$(cat <<EOF
         "bedrock:InvokeModelWithResponseStream"
       ],
       "Resource": [
-        "arn:aws:bedrock:*::foundation-model/anthropic.*",
-        "arn:aws:bedrock:*:${ACCOUNT_ID}:inference-profile/us.anthropic.*"
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "arn:aws:bedrock:us-east-1:${ACCOUNT_ID}:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
       ]
     },
     {
@@ -100,7 +100,7 @@ INLINE_POLICY=$(cat <<EOF
         "logs:CreateLogStream",
         "logs:PutLogEvents"
       ],
-      "Resource": "arn:aws:logs:*:${ACCOUNT_ID}:*"
+      "Resource": "arn:aws:logs:${REGION}:${ACCOUNT_ID}:log-group:/aws/lambda/${LAMBDA_NAME}:*"
     }
   ]
 }
@@ -152,6 +152,10 @@ fi
 echo "    Applying tags..."
 aws s3api put-bucket-tagging --bucket "${BUCKET_NAME}" \
     --tagging "TagSet=[{Key=project,Value=${PROJECT_TAG}}]"
+
+echo "    Enabling versioning..."
+aws s3api put-bucket-versioning --bucket "${BUCKET_NAME}" \
+    --versioning-configuration Status=Enabled
 
 echo "    Uploading board.md (if not already present)..."
 if aws s3api head-object --bucket "${BUCKET_NAME}" --key "board.md" >/dev/null 2>&1; then
@@ -242,10 +246,23 @@ fi
 echo "    Done."
 
 # =============================================================================
-# Step 5: S3 Event Notification → Lambda
+# Step 5: Reserved Concurrency
 # =============================================================================
 echo ""
-echo "--- Step 5: S3 event notification (board.md → Lambda)"
+echo "--- Step 5: Reserved concurrency (5)"
+
+aws lambda put-function-concurrency \
+    --function-name "${LAMBDA_NAME}" \
+    --reserved-concurrent-executions 5 \
+    --region "${REGION}" >/dev/null
+
+echo "    Done."
+
+# =============================================================================
+# Step 6: S3 Event Notification → Lambda
+# =============================================================================
+echo ""
+echo "--- Step 6: S3 event notification (board.md → Lambda)"
 
 LAMBDA_ARN="arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${LAMBDA_NAME}"
 

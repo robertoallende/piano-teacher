@@ -3,6 +3,17 @@
 Triggered by S3 ObjectCreated events on board.md.
 Reads the board, finds cards assigned to piano-teacher in 'doing' status,
 applies loop guard (flip to done immediately), then processes each card.
+
+LOOP GUARD CONTRACT:
+    This handler writes back to board.md (the same file that triggers it).
+    To prevent infinite recursion:
+    1. On entry, we filter for cards with status=doing AND assignee=piano-teacher
+    2. If NO match → exit immediately (this covers the re-trigger case)
+    3. If match → flip to done BEFORE any slow work (Bedrock call, lesson generation)
+    4. The write-back re-triggers this Lambda, but step 2 catches it (~30ms exit)
+
+    This is safe for a single-user PoC. A true concurrent system would need
+    a distributed lock or idempotency token.
 """
 
 import json
