@@ -82,4 +82,5 @@ workflow: planned→doing, doing→done, doing→planned, done→doing
 | b6w8m3x5 | 05 Integration | planned | End-to-end wiring: agent rewrites board, full flow test with real PDF | piano-teacher | 05_integration.md |
 | p2k7n9v4 | 06 Demo | planned | Demo piece selection, screen recording, Builder Center article draft | piano-teacher | 06_demo.md |
 | s8f3w1q6 | 07 Security | done | Concurrency cap, timeout reduction, scoped IAM, bucket versioning | piano-teacher | 07_security.md |
+| r4t2m7j8 | 08 Lessons Board | done | Per-piece kanban block prepended to Lessons.md | piano-teacher | 08_lessons_board.md |
 ```

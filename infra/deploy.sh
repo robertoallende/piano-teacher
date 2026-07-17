@@ -74,7 +74,8 @@ INLINE_POLICY=$(cat <<EOF
       ],
       "Resource": [
         "arn:aws:s3:::${BUCKET_NAME}/lessons/*",
-        "arn:aws:s3:::${BUCKET_NAME}/board.md"
+        "arn:aws:s3:::${BUCKET_NAME}/board.md",
+        "arn:aws:s3:::${BUCKET_NAME}/Lessons.md"
       ]
     },
     {
@@ -90,6 +91,8 @@ INLINE_POLICY=$(cat <<EOF
       ],
       "Resource": [
         "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
         "arn:aws:bedrock:us-east-1:${ACCOUNT_ID}:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
       ]
     },

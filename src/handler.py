@@ -79,8 +79,7 @@ def lambda_handler(event, context):
             written_keys = process_card(card)
 
             if written_keys:
-                # Add lesson cards to the board
-                _add_lesson_cards_to_board(card, written_keys)
+                _prepend_lessons_board(card, written_keys)
                 print(f"  Done: {len(written_keys)} lessons generated for '{title}'")
             else:
                 print(f"  WARNING: No lessons generated for '{title}'")
@@ -94,35 +93,72 @@ def lambda_handler(event, context):
     }
 
 
-def _add_lesson_cards_to_board(source_card: dict, lesson_keys: list[str]) -> None:
-    """Re-read the board and add lesson cards to inbox."""
-    board_content = _read_board()
-    if not board_content:
-        print("ERROR: Could not re-read board.md to add lesson cards")
-        return
+def _prepend_lessons_board(source_card: dict, lesson_keys: list[str]) -> None:
+    """Generate a per-piece kanban board and prepend it to Lessons.md."""
+    from datetime import date, timedelta
+    import string
+    import random
 
-    board = parse_board(board_content)
     piece_title = source_card.get("title", "Unknown")
+    docs = source_card.get("docs", "")
+    today = date.today()
 
-    for key in lesson_keys:
-        # Extract lesson number from key like "lessons/moonlight-sonata/lesson-01.md"
-        filename = key.split("/")[-1]  # lesson-01.md
-        lesson_num = filename.replace("lesson-", "").replace(".md", "")
+    def _gen_id(length=8):
+        return "".join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-        add_card(board["cards"], {
-            "status": "inbox",
-            "title": f"{piece_title} — Lesson {lesson_num}",
-            "description": f"Practice lesson {lesson_num} for {piece_title}",
-            "assignee": "roberto",
-            "session_date": "",
-            "docs": key,
-        })
+    # Build card rows
+    rows = []
 
-    updated_content = serialize_board(
-        board["raw_config"], board["header_labels"], board["cards"]
+    # Song card (done, assigned to piano-teacher, today's date)
+    rows.append(
+        f"| {_gen_id()} | {piece_title} | done | {piece_title} | piano-teacher | {today.isoformat()} | {docs} |"
     )
-    _write_board(updated_content)
-    print(f"  Added {len(lesson_keys)} lesson cards to board.")
+
+    # Lesson cards (inbox, assigned to roberto, spread 2 per day starting tomorrow)
+    for i, key in enumerate(lesson_keys):
+        filename = key.split("/")[-1]
+        lesson_num = filename.replace("lesson-", "").replace(".md", "")
+        session_date = today + timedelta(days=1 + i // 2)
+
+        rows.append(
+            f"| {_gen_id()} | {piece_title} — Lesson {lesson_num} | inbox "
+            f"| Practice lesson {lesson_num} for {piece_title} "
+            f"| roberto | {session_date.isoformat()} | {key} |"
+        )
+
+    rows_str = "\n".join(rows)
+
+    # Build the fancy-kanban block
+    block = f"""```fancy-kanban
+---
+version: 1
+title: {piece_title}
+fields:
+  - name: title, type: Text, label: Title
+  - name: status, type: Select, label: Status, options: inbox|doing|done, default: inbox
+  - name: description, type: Textarea, label: Description
+  - name: assignee, type: Select, label: Assignee, options: piano-teacher|roberto
+  - name: session_date, type: Date, label: Session Date
+  - name: docs, type: File, label: Docs
+workflow: inbox→doing, doing→done, doing→inbox, done→doing, done→inbox
+---
+
+| _id | Title | Status | Description | Assignee | Session Date | Docs |
+| --- | --- | --- | --- | --- | --- | --- |
+{rows_str}
+```
+
+"""
+
+    # Read existing Lessons.md (or empty)
+    existing = _read_lessons_md() or ""
+
+    # Prepend new block
+    updated = block + existing
+
+    # Write back
+    _write_lessons_md(updated)
+    print(f"  Prepended {piece_title} board to Lessons.md ({len(lesson_keys)} lessons)")
 
 
 def _read_board() -> str | None:
@@ -140,6 +176,29 @@ def _write_board(content: str) -> None:
     s3_client.put_object(
         Bucket=BUCKET_NAME,
         Key="board.md",
+        Body=content.encode("utf-8"),
+        ContentType="text/markdown",
+    )
+
+
+def _read_lessons_md() -> str | None:
+    """Read Lessons.md from S3."""
+    try:
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key="Lessons.md")
+        return response["Body"].read().decode("utf-8")
+    except s3_client.exceptions.NoSuchKey:
+        return ""
+    except Exception as e:
+        # File might not exist yet
+        print(f"Lessons.md not found or error: {e} — starting fresh")
+        return ""
+
+
+def _write_lessons_md(content: str) -> None:
+    """Write Lessons.md to S3."""
+    s3_client.put_object(
+        Bucket=BUCKET_NAME,
+        Key="Lessons.md",
         Body=content.encode("utf-8"),
         ContentType="text/markdown",
     )
