@@ -15,7 +15,7 @@ Set up the foundational AWS infrastructure for piano-teacher using bash scripts 
 ## Configuration
 
 - **Region:** us-east-1
-- **Account:** 741448943849
+- **Account:** (derived from `aws sts get-caller-identity`)
 - **Runtime:** Python 3.12
 - **Model:** `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (cross-region inference profile)
 - **Timeout:** 900 seconds (max — needed for PDF analysis + multi-lesson generation)
