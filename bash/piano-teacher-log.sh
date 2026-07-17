@@ -15,6 +15,10 @@ SINCE="5m"
 FRESH=false
 POLL_INTERVAL=3
 
+# Track last seen to avoid duplicates
+SEEN_FILE=$(mktemp)
+trap "rm -f ${SEEN_FILE}" EXIT
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -153,9 +157,15 @@ while true; do
     sleep "${POLL_INTERVAL}"
     aws logs tail "${LOG_GROUP}" \
         --region "${REGION}" \
-        --since "${POLL_INTERVAL}s" \
+        --since "10s" \
         --format short 2>/dev/null | \
     while IFS= read -r raw; do
+        # Deduplicate by checking if we've seen this exact line
+        hash=$(echo "$raw" | md5 -q 2>/dev/null || echo "$raw" | md5sum | cut -d' ' -f1)
+        if grep -qF "$hash" "$SEEN_FILE" 2>/dev/null; then
+            continue
+        fi
+        echo "$hash" >> "$SEEN_FILE"
         line="${raw#* }"
         format_line "$line"
     done
