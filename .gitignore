@@ -1,0 +1,6 @@
+.obsidian/
+infra/lambda.zip
+__pycache__/
+*.pyc
+.env
+.venv/
