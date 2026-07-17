@@ -84,7 +84,10 @@ INLINE_POLICY=$(cat <<EOF
     },
     {
       "Effect": "Allow",
-      "Action": "bedrock:InvokeModel",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
       "Resource": [
         "arn:aws:bedrock:*::foundation-model/anthropic.*",
         "arn:aws:bedrock:*:${ACCOUNT_ID}:inference-profile/us.anthropic.*"
@@ -173,6 +176,8 @@ echo "    Installing dependencies..."
 uv pip install \
     --target "${BUILD_DIR}" \
     --quiet \
+    --python-platform manylinux2014_x86_64 \
+    --python-version 3.12 \
     -r "${SCRIPT_DIR}/../requirements.txt"
 
 echo "    Copying source files..."

@@ -10,7 +10,8 @@ import os
 
 import boto3
 
-from board_parser import parse_board, filter_cards, update_card, serialize_board
+from board_parser import parse_board, filter_cards, update_card, add_card, serialize_board
+from agent import process_card
 
 # Configuration
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "piano-teacher")
@@ -58,14 +59,59 @@ def lambda_handler(event, context):
     _write_board(updated_content)
     print("Board updated: matched cards flipped to done.")
 
-    # Step 5: Process each card (actual agent work — deferred to Unit 04)
+    # Step 5: Process each card with the agent
     for card in matched:
-        print(f"  TODO: Process card '{card.get('title', card['_id'])}' — docs: {card.get('docs', 'none')}")
+        title = card.get("title", card["_id"])
+        print(f"  Processing card: '{title}'")
+
+        try:
+            written_keys = process_card(card)
+
+            if written_keys:
+                # Add lesson cards to the board
+                _add_lesson_cards_to_board(card, written_keys)
+                print(f"  Done: {len(written_keys)} lessons generated for '{title}'")
+            else:
+                print(f"  WARNING: No lessons generated for '{title}'")
+
+        except Exception as e:
+            print(f"  ERROR processing card '{title}': {e}")
 
     return {
         "statusCode": 200,
         "body": f"Processed {len(matched)} card(s).",
     }
+
+
+def _add_lesson_cards_to_board(source_card: dict, lesson_keys: list[str]) -> None:
+    """Re-read the board and add lesson cards to inbox."""
+    board_content = _read_board()
+    if not board_content:
+        print("ERROR: Could not re-read board.md to add lesson cards")
+        return
+
+    board = parse_board(board_content)
+    piece_title = source_card.get("title", "Unknown")
+
+    for key in lesson_keys:
+        # Extract lesson number from key like "lessons/moonlight-sonata/lesson-01.md"
+        filename = key.split("/")[-1]  # lesson-01.md
+        lesson_num = filename.replace("lesson-", "").replace(".md", "")
+
+        add_card(board["cards"], {
+            "status": "inbox",
+            "title": f"{piece_title} — Lesson {lesson_num}",
+            "description": f"Practice lesson {lesson_num} for {piece_title}",
+            "assignee": "roberto",
+            "session_date": "",
+            "docs": key,
+        })
+
+    updated_content = serialize_board(
+        board["raw_config"], board["header_labels"], board["cards"]
+    )
+    _write_board(updated_content)
+    print(f"  Added {len(lesson_keys)} lesson cards to board.")
 
 
 def _read_board() -> str | None:
