@@ -150,6 +150,14 @@ echo "    Applying tags..."
 aws s3api put-bucket-tagging --bucket "${BUCKET_NAME}" \
     --tagging "TagSet=[{Key=project,Value=${PROJECT_TAG}}]"
 
+echo "    Uploading board.md (if not already present)..."
+if aws s3api head-object --bucket "${BUCKET_NAME}" --key "board.md" >/dev/null 2>&1; then
+    echo "    board.md already exists, skipping."
+else
+    aws s3 cp "${SCRIPT_DIR}/../board.md" "s3://${BUCKET_NAME}/board.md" --quiet
+    echo "    Uploaded board.md."
+fi
+
 echo "    Done."
 
 # =============================================================================

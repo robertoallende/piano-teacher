@@ -76,7 +76,7 @@ workflow: planned→doing, doing→done, doing→planned, done→doing
 | _id | Title | Status | Description | Assignee | File |
 | --- | --- | --- | --- | --- | --- |
 | k7m2x9p1 | 01 Infra | done | S3 bucket structure, IAM role, Lambda skeleton, IaC setup | piano-teacher | 01_infra.md |
-| v3n8q4w2 | 02 Kanban | planned | Board file with fancy-kanban schema, MCP tool for read/write | piano-teacher | 02_kanban.md |
+| v3n8q4w2 | 02 Kanban | done | Board file with fancy-kanban schema, MCP tool for read/write | piano-teacher | 02_kanban.md |
 | j5t1r6y8 | 03 Trigger | planned | S3 ObjectModified event wiring, Lambda invocation, loop guard logic | piano-teacher | 03_trigger.md |
 | h9c4f2d7 | 04 Agent | planned | Strands Agent: PDF reading, Bedrock call, lesson decomposition, ABC output | piano-teacher | 04_agent.md |
 | b6w8m3x5 | 05 Integration | planned | End-to-end wiring: agent rewrites board, full flow test with real PDF | piano-teacher | 05_integration.md |
