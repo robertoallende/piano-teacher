@@ -237,6 +237,60 @@ fi
 echo "    Done."
 
 # =============================================================================
+# Step 5: S3 Event Notification → Lambda
+# =============================================================================
+echo ""
+echo "--- Step 5: S3 event notification (board.md → Lambda)"
+
+LAMBDA_ARN="arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${LAMBDA_NAME}"
+
+echo "    Adding Lambda invoke permission for S3..."
+aws lambda add-permission \
+    --function-name "${LAMBDA_NAME}" \
+    --statement-id s3-board-invoke \
+    --action lambda:InvokeFunction \
+    --principal s3.amazonaws.com \
+    --source-arn "arn:aws:s3:::${BUCKET_NAME}" \
+    --source-account "${ACCOUNT_ID}" \
+    --region "${REGION}" 2>/dev/null || echo "    (permission already exists)"
+
+echo "    Configuring bucket notification..."
+NOTIFICATION_CONFIG=$(cat <<EOF
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "board-modified",
+      "LambdaFunctionArn": "${LAMBDA_ARN}",
+      "Events": [
+        "s3:ObjectCreated:*"
+      ],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            {
+              "Name": "prefix",
+              "Value": "board.md"
+            },
+            {
+              "Name": "suffix",
+              "Value": ".md"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+EOF
+)
+
+aws s3api put-bucket-notification-configuration \
+    --bucket "${BUCKET_NAME}" \
+    --notification-configuration "${NOTIFICATION_CONFIG}"
+
+echo "    Done."
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""
@@ -247,5 +301,6 @@ echo "    S3 Bucket:   ${BUCKET_NAME}"
 echo "    IAM Role:    ${ROLE_ARN}"
 echo "    Model:       ${MODEL_ID}"
 echo "    Timeout:     ${TIMEOUT}s"
+echo "    Trigger:     S3 ObjectCreated on board.md → Lambda"
 echo ""
 echo "    Next: run ./run.sh to test the Lambda."
